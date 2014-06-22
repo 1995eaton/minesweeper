@@ -3,7 +3,7 @@ var Mines = {};
 Mines.createGridLines = function() {
   this.context.beginPath();
   this.context.strokeStyle = '#bbb';
-  for (var x = -1; x < this.gridSize * this.squareSize; x += this.squareSize) {
+  for (var x = 0; x < this.gridSize * this.squareSize; x += this.squareSize) {
     this.context.moveTo(x, 0);
     this.context.lineTo(x, this.gridSize * this.squareSize);
     this.context.stroke();
@@ -130,8 +130,9 @@ Mines.pushSquare = function(x, y) {
 };
 
 Mines.onMouseUp = function(event) {
-  var x = Math.floor(this.gridSize * ((event.clientX - this.canvas.offsetLeft) / (this.gridSize * this.squareSize))),
-      y = Math.floor(this.gridSize * ((event.clientY - this.canvas.offsetTop) / (this.gridSize * this.squareSize)));
+  var boundingRect = this.canvas.getBoundingClientRect();
+  var x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize))),
+      y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
   this.mouseDown = false;
   if (this.states[y][x] !== 1) {
     if (this.rightClick === true || (this.rightClick === false && this.states[y][x] === 2)) {
@@ -145,23 +146,22 @@ Mines.onMouseUp = function(event) {
     }
   }
   if (this.states[y][x] !== 2 && this.rightClick === false && x === this.clickPos.x && y === this.clickPos.y) {
-    this.states[y][x] = 1;
     if (this.firstClick) {
-      this.firstClick = false;
       while (this.grid[y][x] !== 0) {
-        this.grid = this.createGrid();
-        this.plantMines();
-        this.calculateNeighborLines();
+        this.resetBoard();
       }
+      this.firstClick = false;
     }
+    this.states[y][x] = 1;
     this.drawNumbers();
   }
 };
 
 Mines.onMouseDown = function(event) {
+  var boundingRect = this.canvas.getBoundingClientRect();
   this.clickPos = {
-    x: Math.floor(this.gridSize * ((event.clientX - this.canvas.offsetLeft) / (this.gridSize * this.squareSize))),
-    y: Math.floor(this.gridSize * ((event.clientY - this.canvas.offsetTop) / (this.gridSize * this.squareSize)))
+    x: Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize))),
+    y: Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)))
   };
   this.rightClick = event.button === 2;
   if (this.states[this.clickPos.y][this.clickPos.x] !== 1) {
@@ -171,9 +171,11 @@ Mines.onMouseDown = function(event) {
 };
 
 Mines.onMouseMove = function(event) {
+  var x, y,
+      boundingRect = this.canvas.getBoundingClientRect();
   if (this.mouseDown) {
-    var x = Math.floor(this.gridSize * ((event.clientX - this.canvas.offsetLeft) / (this.gridSize * this.squareSize))),
-        y = Math.floor(this.gridSize * ((event.clientY - this.canvas.offsetTop) / (this.gridSize * this.squareSize)));
+    x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize)));
+    y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
     if (this.clickPos !== void 0 && this.grid[this.clickPos.y][this.clickPos.x] !== -1 && (x !== this.clickPos.x || y !== this.clickPos.y)) {
       if (this.states[this.clickPos.y][this.clickPos.x] === 0) {
         this.placeSquare(this.clickPos.x, this.clickPos.y, null, '#ddd');
@@ -186,28 +188,59 @@ Mines.onMouseMove = function(event) {
       };
       this.onMouseDown(event);
     }
+  } else {
+    if (this.clickPos && this.states[this.clickPos.y] !== void 0) {
+      if (this.states[this.clickPos.y][this.clickPos.x] === 0) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null, '#ddd');
+      } else if (this.states[this.clickPos.y][this.clickPos.x] === 2) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y, '#888', '#ddd', 'F');
+      }
+    }
+    x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize)));
+    y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
+    this.clickPos = {
+      x: x,
+      y: y
+    };
+    if (this.clickPos && this.states[this.clickPos.y] !== void 0) {
+      if (this.states[this.clickPos.y][this.clickPos.x] === 0) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null, '#eee');
+      } else if (this.states[this.clickPos.y][this.clickPos.x] === 2) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y, '#888', '#eee', 'F');
+      }
+    }
   }
 };
 
-Mines.init = function() {
-  this.canvas = document.getElementById('grid');
-  this.context = this.canvas.getContext('2d');
-  this.mineCount = 40;
-  this.squareSize = 40;
-  this.gridSize = 16;
-  this.canvas.width = this.gridSize * this.squareSize;
-  this.canvas.height = this.canvas.width;
+Mines.resetBoard = function() {
   this.createGridLines();
   this.grid = this.createGrid();
   this.states = this.createGrid();
   this.plantMines();
   this.calculateNeighborLines();
-  this.context.font = 'bold 18pt monospace';
+  this.firstClick = true;
+  this.context.font = 'bold ' + (this.squareSize - 15) + 'px monospace';
   this.context.textAlign = 'center';
   this.context.textBaseline = 'middle';
   this.context.fillStyle = '#888';
-  this.firstClick = true;
   this.drawNumbers();
+  this.clickPos = null;
+};
+
+Mines.setDifficulty = function(gridSize, mines) {
+  this.mineCount = mines;
+  this.gridSize = gridSize;
+  this.squareSize = Math.floor(Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight) / (gridSize * 1.3));
+  this.canvas.width = this.gridSize * this.squareSize;
+  this.canvas.height = this.canvas.width;
+  this.firstClick = true;
+  this.resetBoard();
+};
+
+Mines.init = function() {
+  this.canvas = document.getElementById('grid');
+  this.context = this.canvas.getContext('2d');
+  this.setDifficulty(16, 40);
   this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this), true);
   this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this), true);
   this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this), true);
