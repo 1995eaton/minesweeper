@@ -144,7 +144,7 @@ Mines.onMouseUp = function(event) {
       y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
   this.mouseDown = false;
   if (this.states[y][x] !== this.VISIBLE_STATE) {
-    if (this.rightClick === true || (this.rightClick === false && this.states[y][x] === this.FLAGGED_STATE)) {
+    if (this.rightClick === true || (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE)) {
       if (this.states[y][x] === this.EMPTY_TYPE || (this.rightClick === false && this.states[y][x] === 1)) {
         this.placeSquare(this.clickPos.x, this.clickPos.y, this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
         this.states[y][x] = this.FLAGGED_STATE;
