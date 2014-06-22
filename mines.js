@@ -146,6 +146,14 @@ Mines.onMouseUp = function(event) {
   }
   if (this.states[y][x] !== 2 && this.rightClick === false && x === this.clickPos.x && y === this.clickPos.y) {
     this.states[y][x] = 1;
+    if (this.firstClick) {
+      this.firstClick = false;
+      while (this.grid[y][x] !== 0) {
+        this.grid = this.createGrid();
+        this.plantMines();
+        this.calculateNeighborLines();
+      }
+    }
     this.drawNumbers();
   }
 };
@@ -198,6 +206,7 @@ Mines.init = function() {
   this.context.textAlign = 'center';
   this.context.textBaseline = 'middle';
   this.context.fillStyle = '#888';
+  this.firstClick = true;
   this.drawNumbers();
   this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this), true);
   this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this), true);
