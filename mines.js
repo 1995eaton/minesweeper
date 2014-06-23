@@ -157,7 +157,9 @@ Mines.onMouseUp = function(event) {
   if (this.states[y][x] !== this.FLAGGED_STATE && this.rightClick === false && x === this.clickPos.x && y === this.clickPos.y) {
     if (this.firstClick) {
       while (this.grid[y][x] !== this.EMPTY_TYPE) {
-        this.resetBoard();
+        this.grid = this.createGrid();
+        this.plantMines();
+        this.calculateNeighborLines();
       }
       this.firstClick = false;
     }
