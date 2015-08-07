@@ -13,6 +13,11 @@ var Mines = {
     tileHiddenBg: '#ddd',
     tileVisibleBg: '#fff',
     lineColor: '#ccc'
+  },
+  difficultyPresets: {
+    beginner:     [8, 8, 10],
+    intermediate: [16, 16, 40],
+    expert:       [30, 16, 99]
   }
 
 };
@@ -20,12 +25,14 @@ var Mines = {
 Mines.createGridLines = function() {
   this.context.beginPath();
   this.context.strokeStyle = this.colors.lineColor;
-  for (var x = 0; x < this.gridSize * this.squareSize; x += this.squareSize) {
-    this.context.moveTo(x, 0);
-    this.context.lineTo(x, this.gridSize * this.squareSize);
+  for (var y = 0; y < this.ys * this.squareSize; y += this.squareSize) {
+    this.context.moveTo(0, y);
+    this.context.lineTo(this.xs * this.squareSize, y);
     this.context.stroke();
-    this.context.moveTo(0, x);
-    this.context.lineTo(this.gridSize * this.squareSize, x);
+  }
+  for (var x = 0; x < this.xs * this.squareSize; x += this.squareSize) {
+    this.context.moveTo(x, 0);
+    this.context.lineTo(x, this.ys * this.squareSize);
     this.context.stroke();
   }
   this.context.closePath();
@@ -35,23 +42,25 @@ Mines.createOverlay = function(string) {
   if (string !== 'Paused') {
     this.context.globalAlpha = 0.5;
   }
-  var width = this.gridSize * this.squareSize;
-  this.context.fillRect(0, 0, width, width);
+  var width  = this.xs * this.squareSize,
+      height = this.ys * this.squareSize;
+  this.context.fillRect(0, 0, width, height);
   this.context.globalAlpha = 1;
   this.context.fillStyle = '#555';
   this.context.font = 'bold ' + (this.squareSize - 5) + 'px monospace';
-  this.context.fillText(string, width / 2, width / 2);
+  this.context.fillText(string, width / 2, height / 2);
   this.context.font = 'bold ' + (this.squareSize - 15) + 'px monospace';
 };
 
 Mines.plantMines = function() {
+  var n, x, y, avail = Array.apply(null, new Array(this.xs * this.ys)).map(
+      function(e, i) { return i; });
   for (var i = 0; i < this.mineCount; i++) {
-    var r = Math.floor(Math.random() * this.gridSize * this.gridSize);
-    if (this.grid[r] === this.MINE_TYPE) {
-      i--;
-      continue;
-    }
-    this.grid[r % this.gridSize][Math.floor(r / this.gridSize)] = this.MINE_TYPE;
+    n = Math.floor(Math.random() * avail.length);
+    x = Math.floor(avail[n] / this.xs);
+    y = avail[n] % this.ys;
+    avail.splice(n, 1);
+    this.grid[y][x] = this.MINE_TYPE;
   }
 };
 
@@ -80,16 +89,19 @@ Mines.revealBlanks = function(x, y) {
 
 Mines.placeSquare = function(x, y, fg, bg, text) {
   this.context.fillStyle = bg || '';
-  this.context.fillRect(x * this.squareSize + 1, y * this.squareSize + 1, this.squareSize - 2, this.squareSize - 2);
+  this.context.fillRect(x * this.squareSize + 1, y * this.squareSize + 1,
+                        this.squareSize - 2, this.squareSize - 2);
   this.context.fillStyle = fg || '';
-  this.context.fillText(text || this.grid[y][x], x * this.squareSize + this.squareSize / 2, y * this.squareSize + this.squareSize / 2, 25);
+  this.context.fillText(text || this.grid[y][x],
+                        x * this.squareSize + this.squareSize / 2,
+                        y * this.squareSize + this.squareSize / 2, 25);
   this.context.fillStyle = this.colors.mouseHold;
 };
 
 Mines.drawNumbers = function() {
   this.context.beginPath();
-  for (var y = 0; y < this.gridSize; y++) {
-    for (var x = 0; x < this.gridSize; x++) {
+  for (var y = 0; y < this.ys; y++) {
+    for (var x = 0; x < this.xs; x++) {
       if (this.states[y][x] === this.VISIBLE_STATE) {
         if (this.grid[y][x] === this.MINE_TYPE) {
           this.placeSquare(x, y, null, 'red');
@@ -99,7 +111,8 @@ Mines.drawNumbers = function() {
           this.context.closePath();
           return this.createOverlay('Game Over!');
         } else if (this.grid[y][x] > 0) {
-          this.placeSquare(x, y, this.fillStyles[this.grid[y][x] - 1] || '#000', this.colors.tileVisibleBg);
+          this.placeSquare(x, y, this.fillStyles[this.grid[y][x] - 1] || '#000',
+                           this.colors.tileVisibleBg);
         } else if (this.grid[y][x] === this.EMPTY_TYPE) {
           this.revealBlanks(x, y);
           return this.drawNumbers();
@@ -118,14 +131,14 @@ Mines.drawNumbers = function() {
 };
 
 Mines.createGrid = function() {
-  return Array.apply(null, new Array(this.gridSize)).map(function() {
-    return new Int8Array(this.gridSize);
+  return Array.apply(null, new Array(this.ys)).map(function() {
+    return new Int8Array(this.xs);
   }.bind(this));
 };
 
 Mines.calculateNeighborLines = function() {
-  for (var y = 0; y < this.gridSize; y++) {
-    for (var x = 0; x < this.gridSize; x++) {
+  for (var y = 0; y < this.ys; y++) {
+    for (var x = 0; x < this.xs; x++) {
       if (this.grid[y][x] === this.MINE_TYPE) {
         continue;
       }
@@ -151,7 +164,8 @@ Mines.calculateNeighborLines = function() {
 Mines.pushSquare = function(x, y) {
   if (this.states[y][x] !== this.VISIBLE_STATE) {
     this.context.beginPath();
-    this.context.fillRect(x * this.squareSize + 1, y * this.squareSize + 1, this.squareSize - 2, this.squareSize - 2);
+    this.context.fillRect(x * this.squareSize + 1, y * this.squareSize + 1,
+                          this.squareSize - 2, this.squareSize - 2);
     this.context.closePath();
   }
 };
@@ -161,23 +175,31 @@ Mines.onMouseUp = function(event) {
     return;
   }
   var boundingRect = this.canvas.getBoundingClientRect();
-  var x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize))),
-      y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
+  var x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
+                     (this.xs * this.squareSize))),
+      y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
+                     (this.ys * this.squareSize)));
   this.mouseDown = false;
   if (this.states[y][x] !== this.VISIBLE_STATE) {
-    if (this.rightClick === true || (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE)) {
-      if (this.states[y][x] === this.EMPTY_TYPE || (this.rightClick === false && this.states[y][x] === 1)) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
+    if (this.rightClick === true ||
+        (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE))
+    {
+      if (this.states[y][x] === this.EMPTY_TYPE || (this.rightClick === false &&
+          this.states[y][x] === 1)) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y,
+            this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
         this.states[y][x] = this.FLAGGED_STATE;
         this.mineCountEl.textContent--;
       } else {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, null, this.colors.tileHiddenBg);
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null,
+            this.colors.tileHiddenBg);
         this.states[y][x] = this.HIDDEN_STATE;
         this.mineCountEl.textContent++;
       }
     }
   }
-  if (this.states[y][x] !== this.FLAGGED_STATE && this.rightClick === false && x === this.clickPos.x && y === this.clickPos.y) {
+  if (this.states[y][x] !== this.FLAGGED_STATE && this.rightClick === false &&
+      x === this.clickPos.x && y === this.clickPos.y) {
     if (this.firstClick) {
       while (this.grid[y][x] !== this.EMPTY_TYPE) {
         this.grid = this.createGrid();
@@ -198,8 +220,10 @@ Mines.onMouseDown = function(event) {
   }
   var boundingRect = this.canvas.getBoundingClientRect();
   this.clickPos = {
-    x: Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize))),
-    y: Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)))
+    x: Math.floor(this.xs * ((event.clientX - boundingRect.left) /
+                  (this.xs * this.squareSize))),
+    y: Math.floor(this.ys * ((event.clientY - boundingRect.top) /
+                  (this.ys * this.squareSize)))
   };
   this.rightClick = event.button === 2;
   if (this.states[this.clickPos.y][this.clickPos.x] !== this.VISIBLE_STATE) {
@@ -215,13 +239,21 @@ Mines.onMouseMove = function(event) {
     return;
   }
   if (this.mouseDown) {
-    x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize)));
-    y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
-    if (this.clickPos !== void 0 && this.grid[this.clickPos.y][this.clickPos.x] !== this.EMPTY_TYPE_VISIBLE && (x !== this.clickPos.x || y !== this.clickPos.y)) {
+    x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
+          (this.xs * this.squareSize)));
+    y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
+          (this.ys * this.squareSize)));
+    if (this.clickPos !== void 0 &&
+        this.grid[this.clickPos.y][this.clickPos.x] !==
+          this.EMPTY_TYPE_VISIBLE &&
+          (x !== this.clickPos.x || y !== this.clickPos.y)) {
       if (this.states[this.clickPos.y][this.clickPos.x] === this.HIDDEN_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, null, this.colors.tileHiddenBg);
-      } else if (this.states[this.clickPos.y][this.clickPos.x] === this.FLAGGED_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null,
+            this.colors.tileHiddenBg);
+      } else if (this.states[this.clickPos.y][this.clickPos.x] ===
+                 this.FLAGGED_STATE) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y,
+            this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
       }
       this.clickPos = {
         x: x,
@@ -232,22 +264,30 @@ Mines.onMouseMove = function(event) {
   } else {
     if (this.clickPos && this.states[this.clickPos.y] !== void 0) {
       if (this.states[this.clickPos.y][this.clickPos.x] === this.HIDDEN_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, null, this.colors.tileHiddenBg);
-      } else if (this.states[this.clickPos.y][this.clickPos.x] === this.FLAGGED_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null,
+            this.colors.tileHiddenBg);
+      } else if (this.states[this.clickPos.y][this.clickPos.x] ===
+                 this.FLAGGED_STATE) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y,
+            this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
       }
     }
-    x = Math.floor(this.gridSize * ((event.clientX - boundingRect.left) / (this.gridSize * this.squareSize)));
-    y = Math.floor(this.gridSize * ((event.clientY - boundingRect.top) / (this.gridSize * this.squareSize)));
+    x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
+                   (this.xs * this.squareSize)));
+    y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
+                   (this.ys * this.squareSize)));
     this.clickPos = {
       x: x,
       y: y
     };
     if (this.clickPos && this.states[this.clickPos.y] !== void 0) {
       if (this.states[this.clickPos.y][this.clickPos.x] === this.HIDDEN_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, null, this.colors.mouseHover);
-      } else if (this.states[this.clickPos.y][this.clickPos.x] === this.FLAGGED_STATE) {
-        this.placeSquare(this.clickPos.x, this.clickPos.y, this.colors.mouseHold, this.colors.mouseHover, 'F');
+        this.placeSquare(this.clickPos.x, this.clickPos.y, null,
+            this.colors.mouseHover);
+      } else if (this.states[this.clickPos.y][this.clickPos.x] ===
+                 this.FLAGGED_STATE) {
+        this.placeSquare(this.clickPos.x, this.clickPos.y,
+            this.colors.mouseHold, this.colors.mouseHover, 'F');
       }
     }
   }
@@ -264,7 +304,8 @@ Mines.onKeyPress = function(event) {
           this.createOverlay('Paused');
         } else {
           this.context.fillStyle = '#fff';
-          this.context.fillRect(0, 0, this.gridSize * this.squareSize, this.gridSize * this.squareSize);
+          this.context.fillRect(0, 0, this.xs * this.squareSize,
+              this.ys * this.squareSize);
           this.context.fillStyle = '#ddd';
           this.createGridLines();
           this.drawNumbers();
@@ -289,18 +330,26 @@ Mines.resetBoard = function() {
   this.clickPos = null;
 };
 
-Mines.setDifficulty = function(gridSize, mines) {
+Mines.setDifficulty = function(xs, ys, mines) {
+  if (typeof xs === 'string') {
+    return this.setDifficulty.apply(this, this.difficultyPresets[xs]);
+  }
   window.clearInterval(this.timerInterval);
   this.timer.textContent = '0';
   this.gamePaused = false;
   this.mineCount = mines;
   this.mineCountEl.textContent = mines;
-  this.gridSize = gridSize;
-  this.squareSize = Math.floor(Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight) / (gridSize * 1.3));
-  this.canvas.width = this.gridSize * this.squareSize;
-  this.canvas.height = this.canvas.width;
+  this.xs = xs;
+  this.ys = ys;
+  var cw = document.documentElement.clientWidth,
+      ch = document.documentElement.clientHeight;
+  var m = cw * ys > ch * xs ? ch : cw;
+  this.squareSize = Math.min(35, Math.floor(m / ((m === cw ? xs : ys) * 1.3)));
+  this.canvas.width = this.xs * this.squareSize;
+  this.canvas.height = this.ys * this.squareSize;
   this.firstClick = true;
   this.resetBoard();
+  this.restyle();
 };
 
 Mines.startGame = function() {
@@ -322,13 +371,29 @@ Mines.startGame = function() {
   }.bind(this));
 };
 
+Mines.restyle = function() {
+  Mines.canvas.style.top = window.innerHeight / 2 -
+    Mines.canvas.offsetHeight / 2 + 'px';
+  Mines.canvas.style.left = window.innerWidth / 2 -
+    Mines.canvas.offsetWidth / 2 + 'px';
+  Mines.timer.style.top = Mines.canvas.offsetTop -
+    Mines.timer.offsetHeight + 'px';
+  Mines.timer.style.left = Mines.canvas.offsetLeft + 'px';
+  Mines.mineCountEl.style.left = Mines.canvas.offsetLeft +
+    Mines.canvas.offsetWidth - Mines.mineCountEl.offsetWidth + 'px';
+  Mines.mineCountEl.style.top = Mines.timer.style.top;
+  Mines.newGameButton.style.top = Mines.canvas.offsetTop +
+    Mines.canvas.offsetHeight + 10 + 'px';
+  Mines.newGameButton.style.left = Mines.canvas.offsetLeft + 'px';
+};
+
 Mines.init = function() {
   this.canvas = document.getElementById('grid');
   this.timer = document.getElementById('timer');
   this.mineCountEl = document.getElementById('mine-count');
   this.context = this.canvas.getContext('2d');
   this.newGameButton = document.getElementById('new-game');
-  this.setDifficulty(16, 40);
+  this.setDifficulty('beginner');
   this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this), true);
   this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this), true);
   this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this), true);
@@ -338,14 +403,4 @@ Mines.init = function() {
   document.addEventListener('keypress', this.onKeyPress.bind(this), true);
 };
 
-document.addEventListener('DOMContentLoaded', function() {
-  Mines.init.call(Mines);
-  Mines.canvas.style.top = window.innerHeight / 2 - Mines.canvas.offsetHeight / 2 + 'px';
-  Mines.canvas.style.left = window.innerWidth / 2 - Mines.canvas.offsetWidth / 2 + 'px';
-  Mines.timer.style.top = Mines.canvas.offsetTop - Mines.timer.offsetHeight + 'px';
-  Mines.timer.style.left = Mines.canvas.offsetLeft + 'px';
-  Mines.mineCountEl.style.left = Mines.canvas.offsetLeft + Mines.canvas.offsetWidth - Mines.mineCountEl.offsetWidth + 'px';
-  Mines.mineCountEl.style.top = Mines.timer.style.top;
-  Mines.newGameButton.style.top = Mines.canvas.offsetTop + Mines.canvas.offsetHeight + 10 + 'px';
-  Mines.newGameButton.style.left = Mines.canvas.offsetLeft + 'px';
-}, false);
+document.addEventListener('DOMContentLoaded', Mines.init.bind(Mines), false);
