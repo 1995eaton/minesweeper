@@ -1,3 +1,5 @@
+LOG = console.log.bind(console);
+
 var Mines = {
 
   MINE_TYPE: 7,
@@ -8,7 +10,7 @@ var Mines = {
   FLAGGED_STATE: 2,
   fillStyles: ['blue', 'green', 'red', 'darkblue', '#551111', 'teal'],
   colors: {
-    mouseHold: '#888',
+    mouseHold: '#aaa',
     mouseHover: '#eee',
     tileHiddenBg: '#ddd',
     tileVisibleBg: '#fff',
@@ -53,12 +55,15 @@ Mines.createOverlay = function(string) {
 };
 
 Mines.plantMines = function() {
-  var n, x, y, avail = Array.apply(null, new Array(this.xs * this.ys)).map(
-      function(e, i) { return i; });
+  var n, x, y;
+  var avail = Array.apply(null, new Array(this.xs * this.ys))
+    .map(function(e, i) {
+      return i;
+    });
   for (var i = 0; i < this.mineCount; i++) {
     n = Math.floor(Math.random() * avail.length);
-    x = Math.floor(avail[n] / this.xs);
-    y = avail[n] % this.ys;
+    y = Math.floor(avail[n] / this.xs);
+    x = avail[n] % this.xs;
     avail.splice(n, 1);
     this.grid[y][x] = this.MINE_TYPE;
   }
@@ -94,7 +99,7 @@ Mines.placeSquare = function(x, y, fg, bg, text) {
   this.context.fillStyle = fg || '';
   this.context.fillText(text || this.grid[y][x],
                         x * this.squareSize + this.squareSize / 2,
-                        y * this.squareSize + this.squareSize / 2, 25);
+                        y * this.squareSize + this.squareSize / 2 + 1, 25);
   this.context.fillStyle = this.colors.mouseHold;
 };
 
@@ -116,6 +121,8 @@ Mines.drawNumbers = function() {
         } else if (this.grid[y][x] === this.EMPTY_TYPE) {
           this.revealBlanks(x, y);
           return this.drawNumbers();
+        } else {
+          this.placeSquare(x, y, null, this.colors.tileVisibleBg);
         }
       } else {
         if (this.states[y][x] === this.FLAGGED_STATE) {
@@ -174,16 +181,12 @@ Mines.onMouseUp = function(event) {
   if (this.gamePaused) {
     return;
   }
-  var boundingRect = this.canvas.getBoundingClientRect();
-  var x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
-                     (this.xs * this.squareSize))),
-      y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
-                     (this.ys * this.squareSize)));
+  var x = Math.floor(event.offsetX / this.squareSize);
+  var y = Math.floor(event.offsetY / this.squareSize);
   this.mouseDown = false;
   if (this.states[y][x] !== this.VISIBLE_STATE) {
     if (this.rightClick === true ||
-        (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE))
-    {
+        (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE)) {
       if (this.states[y][x] === this.EMPTY_TYPE || (this.rightClick === false &&
           this.states[y][x] === 1)) {
         this.placeSquare(this.clickPos.x, this.clickPos.y,
@@ -196,6 +199,32 @@ Mines.onMouseUp = function(event) {
         this.states[y][x] = this.HIDDEN_STATE;
         this.mineCountEl.textContent++;
       }
+    }
+  } else if (!this.rightClick && this.grid[y][x] !== -1) {
+    var hiddenSquares = [];
+    var flagCount = 0;
+    for (var i = -1; i < 2; i++) {
+      var _y = y + i;
+      if (_y < 0 || _y >= this.grid.length)
+        continue;
+      for (var j = -1; j < 2; j++) {
+        var _x = x + j;
+        if (_x < 0 || _x >= this.grid[0].length)
+          continue;
+        flagCount += +(this.states[_y][_x] === this.FLAGGED_STATE);
+        if (this.states[_y][_x] !== this.VISIBLE_STATE &&
+            this.states[_y][_x] !== this.FLAGGED_STATE) {
+          hiddenSquares.push([_x, _y]);
+        }
+      }
+    }
+    if (flagCount === this.grid[y][x]) {
+      (function() {
+        hiddenSquares.forEach(function(coords) {
+          var x = coords[0], y = coords[1];
+          this.states[y][x] = this.VISIBLE_STATE;
+        }.bind(this));
+      }.bind(this))();
     }
   }
   if (this.states[y][x] !== this.FLAGGED_STATE && this.rightClick === false &&
@@ -218,35 +247,45 @@ Mines.onMouseDown = function(event) {
   if (this.gamePaused) {
     return;
   }
-  var boundingRect = this.canvas.getBoundingClientRect();
   this.clickPos = {
-    x: Math.floor(this.xs * ((event.clientX - boundingRect.left) /
-                  (this.xs * this.squareSize))),
-    y: Math.floor(this.ys * ((event.clientY - boundingRect.top) /
-                  (this.ys * this.squareSize)))
+    x: Math.floor(event.offsetX / this.squareSize),
+    y: Math.floor(event.offsetY / this.squareSize),
   };
   this.rightClick = event.button === 2;
+  this.mouseDown = true;
   if (this.states[this.clickPos.y][this.clickPos.x] !== this.VISIBLE_STATE) {
-    this.mouseDown = true;
     this.pushSquare(this.clickPos.x, this.clickPos.y);
+  } else if (!this.rightClick) {
+    for (var i = -1; i < 2; i++) {
+      var _y = this.clickPos.y + i;
+      if (_y < 0 || _y >= this.grid.length)
+        continue;
+      for (var j = -1; j < 2; j++) {
+        var _x = this.clickPos.x + j;
+        if (_x < 0 || _x >= this.grid[0].length)
+          continue;
+        if (this.states[_y][_x] !== this.VISIBLE_STATE &&
+            this.states[_y][_x] !== this.FLAGGED_STATE) {
+          this.pushSquare(_x, _y);
+        }
+      }
+    }
   }
 };
 
 Mines.onMouseMove = function(event) {
-  var x, y,
-      boundingRect = this.canvas.getBoundingClientRect();
+  var x, y;
   if (this.gamePaused) {
     return;
   }
   if (this.mouseDown) {
-    x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
-          (this.xs * this.squareSize)));
-    y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
-          (this.ys * this.squareSize)));
+    x = Math.floor(event.offsetX / this.squareSize);
+    y = Math.floor(event.offsetY / this.squareSize);
+    if (x !== this.clickPos.x || y !== this.clickPos.y) {
+      this.drawNumbers();
+    }
     if (this.clickPos !== void 0 &&
-        this.grid[this.clickPos.y][this.clickPos.x] !==
-          this.EMPTY_TYPE_VISIBLE &&
-          (x !== this.clickPos.x || y !== this.clickPos.y)) {
+        (x !== this.clickPos.x || y !== this.clickPos.y)) {
       if (this.states[this.clickPos.y][this.clickPos.x] === this.HIDDEN_STATE) {
         this.placeSquare(this.clickPos.x, this.clickPos.y, null,
             this.colors.tileHiddenBg);
@@ -272,10 +311,8 @@ Mines.onMouseMove = function(event) {
             this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
       }
     }
-    x = Math.floor(this.xs * ((event.clientX - boundingRect.left) /
-                   (this.xs * this.squareSize)));
-    y = Math.floor(this.ys * ((event.clientY - boundingRect.top) /
-                   (this.ys * this.squareSize)));
+    x = Math.floor(event.offsetX / this.squareSize);
+    y = Math.floor(event.offsetY / this.squareSize);
     this.clickPos = {
       x: x,
       y: y
@@ -297,20 +334,20 @@ Mines.onKeyPress = function(event) {
   if (this.gameInProgess === true) {
     var key = String.fromCharCode(event.which);
     switch (key) {
-      case 'p':
-        this.gamePaused = !this.gamePaused;
-        if (this.gamePaused) {
-          this.drawNumbers();
-          this.createOverlay('Paused');
-        } else {
-          this.context.fillStyle = '#fff';
-          this.context.fillRect(0, 0, this.xs * this.squareSize,
-              this.ys * this.squareSize);
-          this.context.fillStyle = '#ddd';
-          this.createGridLines();
-          this.drawNumbers();
-        }
-        break;
+    case 'p':
+      this.gamePaused = !this.gamePaused;
+      if (this.gamePaused) {
+        this.drawNumbers();
+        this.createOverlay('Paused');
+      } else {
+        this.context.fillStyle = '#fff';
+        this.context.fillRect(0, 0, this.xs * this.squareSize,
+            this.ys * this.squareSize);
+        this.context.fillStyle = '#ddd';
+        this.createGridLines();
+        this.drawNumbers();
+      }
+      break;
     }
   }
 };
@@ -322,7 +359,7 @@ Mines.resetBoard = function() {
   this.plantMines();
   this.calculateNeighborLines();
   this.firstClick = true;
-  this.context.font = 'bold ' + (this.squareSize - 15) + 'px monospace';
+  this.context.font = 'bold ' + (this.squareSize - 8) + 'px monospace';
   this.context.textAlign = 'center';
   this.context.textBaseline = 'middle';
   this.context.fillStyle = this.colors.mouseHold;
@@ -341,15 +378,20 @@ Mines.setDifficulty = function(xs, ys, mines) {
   this.mineCountEl.textContent = mines;
   this.xs = xs;
   this.ys = ys;
-  var cw = document.documentElement.clientWidth,
-      ch = document.documentElement.clientHeight;
-  var m = cw * ys > ch * xs ? ch : cw;
-  this.squareSize = Math.min(35, Math.floor(m / ((m === cw ? xs : ys) * 1.3)));
+  // var cw = document.documentElement.clientWidth,
+  //     ch = document.documentElement.clientHeight;
+  // var m = cw * ys > ch * xs ? ch : cw;
+  // this.squareSize = Math.min(35, Math.floor(m / ((m === cw ? xs : ys) * 1.3)));
+  // this.squareSize = Math.floor(this.canvas.clientWidth / this.xs);
+  // this.squareSize = Math.floor(this.canvas.clientWidth / this.xs);
+  this.squareSize = 26;
   this.canvas.width = this.xs * this.squareSize;
   this.canvas.height = this.ys * this.squareSize;
+  this.canvas.style.width = this.canvas.width + 'px';
+  this.canvas.style.height = this.canvas.height + 'px';
+
   this.firstClick = true;
   this.resetBoard();
-  this.restyle();
 };
 
 Mines.startGame = function() {
@@ -371,29 +413,12 @@ Mines.startGame = function() {
   }.bind(this));
 };
 
-Mines.restyle = function() {
-  Mines.canvas.style.top = window.innerHeight / 2 -
-    Mines.canvas.offsetHeight / 2 + 'px';
-  Mines.canvas.style.left = window.innerWidth / 2 -
-    Mines.canvas.offsetWidth / 2 + 'px';
-  Mines.timer.style.top = Mines.canvas.offsetTop -
-    Mines.timer.offsetHeight + 'px';
-  Mines.timer.style.left = Mines.canvas.offsetLeft + 'px';
-  Mines.mineCountEl.style.left = Mines.canvas.offsetLeft +
-    Mines.canvas.offsetWidth - Mines.mineCountEl.offsetWidth + 'px';
-  Mines.mineCountEl.style.top = Mines.timer.style.top;
-  Mines.newGameButton.style.top = Mines.canvas.offsetTop +
-    Mines.canvas.offsetHeight + 10 + 'px';
-  Mines.newGameButton.style.left = Mines.canvas.offsetLeft + 'px';
-};
-
 Mines.init = function() {
   this.canvas = document.getElementById('grid');
   this.timer = document.getElementById('timer');
   this.mineCountEl = document.getElementById('mine-count');
   this.context = this.canvas.getContext('2d');
   this.newGameButton = document.getElementById('new-game');
-  this.setDifficulty('beginner');
   this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this), true);
   this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this), true);
   this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this), true);
@@ -403,4 +428,14 @@ Mines.init = function() {
   document.addEventListener('keypress', this.onKeyPress.bind(this), true);
 };
 
-document.addEventListener('DOMContentLoaded', Mines.init.bind(Mines), false);
+document.addEventListener('DOMContentLoaded', function() {
+  Mines.init();
+
+  var newGame = document.getElementById('new-game');
+  var difficultyMenu = document.getElementById('difficulty');
+  newGame.onclick = function() {
+    Mines.setDifficulty(difficultyMenu.value);
+  };
+  newGame.onclick();
+
+}, false);

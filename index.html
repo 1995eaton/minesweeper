@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Minesweeper</title>
-  <link rel="stylesheet" href="./style.css">
-  <script src="./mines.js"></script>
-</head>
-<body>
-<a href="https://github.com/1995eaton/minesweeper"><img id="github" alt="Fork me on GitHub" src="./images/github.png"></a>
-<div id="timer">0</div>
-<div id="mine-count">0</div>
-<canvas id="grid"></canvas>
-<button id="new-game" onclick="Mines.setDifficulty(16, 16, 40)">New Game</button>
-</body>
+    <head>
+        <meta charset="utf-8">
+        <title>Minesweeper</title>
+        <link rel="stylesheet" href="./style.css">
+        <script src="./mines.js"></script>
+    </head>
+    <body>
+        <a href="https://github.com/1995eaton/minesweeper"><img id="github" alt="Fork me on GitHub" src="./images/github.png"></a>
+        <div id="main-container">
+            <div id="container-centered">
+                <div id="container-top">
+                    <div id="timer">0</div>
+                    <div id="mine-count">0</div>
+                </div>
+                <div id="container-middle">
+                    <canvas id="grid"></canvas>
+                </div>
+                <div id="container-bottom">
+                    <button id="new-game">New Game</button>
+                    <select id="difficulty">
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate" selected>Intermediate</option>
+                        <option value="expert">Expert</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </body>
 </html>
