@@ -25,6 +25,9 @@ var Mines = {
 };
 
 Mines.createGridLines = function() {
+  this.canvas.width = this.xs * this.squareSize;
+  this.canvas.height = this.ys * this.squareSize;
+
   this.context.beginPath();
   this.context.strokeStyle = this.colors.lineColor;
   for (var y = 0; y < this.ys * this.squareSize; y += this.squareSize) {
@@ -382,31 +385,31 @@ Mines.onKeyPress = function(event) {
         this.drawNumbers();
         this.createOverlay('Paused');
       } else {
-        this.context.fillStyle = '#fff';
-        this.context.fillRect(0, 0, this.xs * this.squareSize,
-            this.ys * this.squareSize);
-        this.context.fillStyle = '#ddd';
-        this.createGridLines();
-        this.drawNumbers();
+        this.redrawBoard();
       }
       break;
     }
   }
 };
 
-Mines.resetBoard = function() {
+Mines.redrawBoard = function() {
   this.createGridLines();
-  this.grid = this.createGrid();
-  this.states = this.createGrid();
-  this.plantMines();
-  this.calculateNeighborLines();
-  this.firstClick = true;
   this.context.font = 'bold ' + (this.squareSize - 8) + 'px monospace';
   this.context.textAlign = 'center';
   this.context.textBaseline = 'middle';
   this.context.fillStyle = this.colors.mouseHold;
   this.drawNumbers();
   this.clickPos = null;
+};
+
+Mines.resetBoard = function() {
+  this.grid = this.createGrid();
+  this.states = this.createGrid();
+  this.plantMines();
+  this.calculateNeighborLines();
+  this.firstClick = true;
+  this.clickPos = null;
+  this.redrawBoard();
 };
 
 Mines.setDifficulty = function(xs, ys, mines) {
