@@ -1,14 +1,14 @@
-LOG = console.log.bind(console);
-
 var Mines = {
-
   MINE_TYPE: 7,
   EMPTY_TYPE: 0,
   EMPTY_TYPE_VISIBLE: -1,
+
   HIDDEN_STATE: 0,
   VISIBLE_STATE: 1,
   FLAGGED_STATE: 2,
+
   fillStyles: ['blue', 'green', 'red', 'darkblue', '#551111', 'teal'],
+
   colors: {
     mouseHold: '#aaa',
     mouseHover: '#eee',
@@ -16,12 +16,12 @@ var Mines = {
     tileVisibleBg: '#fff',
     lineColor: '#ccc'
   },
+
   difficultyPresets: {
     beginner:     [8, 8, 10],
     intermediate: [16, 16, 40],
     expert:       [30, 16, 99]
   }
-
 };
 
 Mines.createGridLines = function() {
@@ -103,13 +103,33 @@ Mines.placeSquare = function(x, y, fg, bg, text) {
   this.context.fillStyle = this.colors.mouseHold;
 };
 
+Mines.revealMines = function(state) {
+  for (var y = 0; y < this.ys; y++) {
+    for (var x = 0; x < this.xs; x++) {
+      if (this.grid[y][x] === this.MINE_TYPE) {
+        switch (state) {
+        case this.HIDDEN_STATE:
+          this.states[y][x] = this.HIDDEN_STATE;
+          this.placeSquare(x, y, null, 'red');
+          break;
+        case this.FLAGGED_STATE:
+          this.states[y][x] = this.FLAGGED_STATE;
+          this.placeSquare(x, y, this.colors.mouseHold,
+              this.colors.tileHiddenBg, 'F');
+          break;
+        }
+      }
+    }
+  }
+};
+
 Mines.drawNumbers = function() {
   this.context.beginPath();
   for (var y = 0; y < this.ys; y++) {
     for (var x = 0; x < this.xs; x++) {
       if (this.states[y][x] === this.VISIBLE_STATE) {
         if (this.grid[y][x] === this.MINE_TYPE) {
-          this.placeSquare(x, y, null, 'red');
+          this.revealMines(this.HIDDEN_STATE);
           this.gameInProgess = false;
           this.gameActive = false;
           this.gamePaused = true;
@@ -126,7 +146,8 @@ Mines.drawNumbers = function() {
         }
       } else {
         if (this.states[y][x] === this.FLAGGED_STATE) {
-          this.placeSquare(x, y, this.colors.mouseHold, this.colors.tileHiddenBg, 'F');
+          this.placeSquare(x, y, this.colors.mouseHold,
+              this.colors.tileHiddenBg, 'F');
         } else {
           this.placeSquare(x, y, null, this.colors.tileHiddenBg);
         }
@@ -177,6 +198,18 @@ Mines.pushSquare = function(x, y) {
   }
 };
 
+Mines.checkWin = function() {
+  for (var y = 0; y < this.ys; y++) {
+    for (var x = 0; x < this.xs; x++) {
+      if (this.grid[y][x] !== this.MINE_TYPE &&
+          this.states[y][x] !== this.VISIBLE_STATE) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
 Mines.onMouseUp = function(event) {
   if (this.gamePaused) {
     return;
@@ -186,7 +219,8 @@ Mines.onMouseUp = function(event) {
   this.mouseDown = false;
   if (this.states[y][x] !== this.VISIBLE_STATE) {
     if (this.rightClick === true ||
-        (this.rightClick === true && this.states[y][x] === this.FLAGGED_STATE)) {
+        (this.rightClick === true &&
+         this.states[y][x] === this.FLAGGED_STATE)) {
       if (this.states[y][x] === this.EMPTY_TYPE || (this.rightClick === false &&
           this.states[y][x] === 1)) {
         this.placeSquare(this.clickPos.x, this.clickPos.y,
@@ -240,6 +274,14 @@ Mines.onMouseUp = function(event) {
     }
     this.states[y][x] = this.VISIBLE_STATE;
     this.drawNumbers();
+  }
+  if (this.checkWin()) {
+    this.gameInProgess = false;
+    this.gameActive = false;
+    this.gamePaused = true;
+    this.revealMines(this.FLAGGED_STATE);
+    this.context.closePath();
+    return this.createOverlay('You Win!');
   }
 };
 
@@ -378,12 +420,6 @@ Mines.setDifficulty = function(xs, ys, mines) {
   this.mineCountEl.textContent = mines;
   this.xs = xs;
   this.ys = ys;
-  // var cw = document.documentElement.clientWidth,
-  //     ch = document.documentElement.clientHeight;
-  // var m = cw * ys > ch * xs ? ch : cw;
-  // this.squareSize = Math.min(35, Math.floor(m / ((m === cw ? xs : ys) * 1.3)));
-  // this.squareSize = Math.floor(this.canvas.clientWidth / this.xs);
-  // this.squareSize = Math.floor(this.canvas.clientWidth / this.xs);
   this.squareSize = 26;
   this.canvas.width = this.xs * this.squareSize;
   this.canvas.height = this.ys * this.squareSize;
@@ -438,4 +474,4 @@ document.addEventListener('DOMContentLoaded', function() {
   };
   newGame.onclick();
 
-}, false);
+});

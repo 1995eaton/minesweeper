@@ -81,8 +81,6 @@ html, body {
 }
 
 #difficulty {
-  /* font-size: 12pt; */
-  /* display: inline-block; */
   border: 0;
   display: inline;
   outline-style: none;
